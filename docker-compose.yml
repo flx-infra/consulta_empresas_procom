@@ -5,7 +5,7 @@
 #   IMAGE            imagen de Docker Hub, ej. usuario/consultaempresas:1.0.0   (obligatoria)
 #   NODE             constraint de placement, ej. node.hostname==worker98      (obligatoria)
 #   LOKI_URL         URL de Loki para los logs                                 (obligatoria)
-#   APP_PORT         puerto publicado en el nodo                               (default 5007)
+#   APP_PORT         puerto publicado en el nodo                               (default 3256)
 #   TRAEFIK_NETWORK  red overlay de Traefik                                    (default traefik)
 #   Solo si se publica con dominio por Traefik:
 #   TRAEFIK_ENABLE=true, DOMAIN, TRAEFIK_ENTRYPOINT (default websecure), TRAEFIK_CERTRESOLVER (default letsencrypt)
@@ -18,7 +18,7 @@ services:
   consultaempresas:
     image: fabreguesm/consultaempresas:1.0.0
     ports:
-      - "${APP_PORT:-5007}:5006"
+      - "${APP_PORT:-3256}:5006"
     environment:
       NODE_ENV: production
       PORT: "5006"
