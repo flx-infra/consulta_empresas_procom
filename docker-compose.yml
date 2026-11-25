@@ -1,13 +1,12 @@
 # Consulta Empresas Procom - stack de Docker Swarm (Portainer)
-# Codigo e imagenes: repo consultaempresasprocom (server/Dockerfile y client/Dockerfile)
+# Codigo e imagen: repo consultaempresasprocom (Dockerfile en la raiz: front + API en una sola imagen)
 #
 # Variables del stack (Portainer > Stack > Environment variables):
-#   IMAGE_API        imagen de la API, ej. usuario/consultaempresas-api:1.0.0   (obligatoria)
-#   IMAGE_WEB        imagen del front, ej. usuario/consultaempresas-web:1.0.0   (obligatoria)
-#   NODE             constraint de placement, ej. node.hostname==worker98       (obligatoria)
-#   LOKI_URL         URL de Loki para los logs                                  (obligatoria)
-#   APP_PORT         puerto publicado en el nodo                                (default 5007)
-#   TRAEFIK_NETWORK  red overlay de Traefik                                     (default traefik)
+#   IMAGE            imagen de Docker Hub, ej. usuario/consultaempresas:1.0.0   (obligatoria)
+#   NODE             constraint de placement, ej. node.hostname==worker98      (obligatoria)
+#   LOKI_URL         URL de Loki para los logs                                 (obligatoria)
+#   APP_PORT         puerto publicado en el nodo                               (default 5007)
+#   TRAEFIK_NETWORK  red overlay de Traefik                                    (default traefik)
 #   Solo si se publica con dominio por Traefik:
 #   TRAEFIK_ENABLE=true, DOMAIN, TRAEFIK_ENTRYPOINT (default websecure), TRAEFIK_CERTRESOLVER (default letsencrypt)
 #
@@ -16,10 +15,10 @@
 version: "3.9"
 
 services:
-  # Nombres unicos: la red traefik es compartida con otros stacks y el DNS de Swarm
-  # resuelve por nombre de servicio
-  consultaempresas-api:
-    image: ${IMAGE_API:?Definir IMAGE_API (usuario/consultaempresas-api:tag)}
+  consultaempresas:
+    image: ${IMAGE:?Definir IMAGE (usuario/consultaempresas:tag)}
+    ports:
+      - "${APP_PORT:-5007}:5006"
     environment:
       NODE_ENV: production
       PORT: "5006"
@@ -35,14 +34,14 @@ services:
       driver: loki
       options:
         loki-url: ${LOKI_URL:?Definir LOKI_URL}
-    # La API no se publica: solo la ve el front por la red interna
     networks:
-      - internal
+      - traefik
     deploy:
       placement:
         constraints: ["${NODE:?Definir NODE (ej. node.hostname==worker98)}"]
       replicas: 1
       update_config:
+        # Sin estado: el nuevo arranca antes de bajar el viejo (sin corte)
         order: start-first
         failure_action: rollback
         delay: 10s
@@ -54,36 +53,6 @@ services:
       resources:
         limits:
           memory: 256M
-
-  consultaempresas-web:
-    image: ${IMAGE_WEB:?Definir IMAGE_WEB (usuario/consultaempresas-web:tag)}
-    ports:
-      - "${APP_PORT:-5007}:80"
-    environment:
-      TZ: America/Argentina/Buenos_Aires
-    logging:
-      driver: loki
-      options:
-        loki-url: ${LOKI_URL:?Definir LOKI_URL}
-    networks:
-      - internal
-      - traefik
-    deploy:
-      placement:
-        constraints: ["${NODE:?Definir NODE (ej. node.hostname==worker98)}"]
-      replicas: 1
-      update_config:
-        order: start-first
-        failure_action: rollback
-        delay: 10s
-      rollback_config:
-        order: start-first
-      restart_policy:
-        condition: any
-        delay: 10s
-      resources:
-        limits:
-          memory: 64M
       labels:
         # Apagado por defecto: se accede por IP:APP_PORT como el resto de los servicios del nodo
         - traefik.enable=${TRAEFIK_ENABLE:-false}
@@ -91,14 +60,12 @@ services:
         - traefik.http.routers.consulta-empresas.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
         - traefik.http.routers.consulta-empresas.tls=true
         - traefik.http.routers.consulta-empresas.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
-        - traefik.http.services.consulta-empresas.loadbalancer.server.port=80
+        - traefik.http.services.consulta-empresas.loadbalancer.server.port=5006
         # Traefik v2 usa traefik.docker.network, v3 usa traefik.swarm.network
         - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
         - traefik.swarm.network=${TRAEFIK_NETWORK:-traefik}
 
 networks:
-  internal:
-    driver: overlay
   traefik:
     external: true
     name: ${TRAEFIK_NETWORK:-traefik}

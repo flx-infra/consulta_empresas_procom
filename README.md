@@ -1,10 +1,10 @@
 # consulta_empresas_procom (infra)
 
-Stack de Docker Swarm de **Consulta Empresas Procom**: front React servido por nginx y API Node que consulta Firebird.
+Stack de Docker Swarm de **Consulta Empresas Procom**: API Node/Express que consulta Firebird y sirve también el front React (una sola imagen).
 
-- Código y `Dockerfile`s: repo `consultaempresasprocom` (`server/Dockerfile` → API, `client/Dockerfile` → front)
+- Código y `Dockerfile`: repo `consultaempresasprocom` (`Dockerfile` en la raíz)
 - Acceso: `http://<ip-del-worker>:5007` (puerto publicado en el worker)
-- El front hace de proxy: `/v1/*` → `consultaempresas-api:5006` por la red interna del stack. La API no se publica.
+- `/` → front, `/v1/empresas` → API, en el mismo puerto.
 
 ## Antes del primer deploy
 
@@ -20,30 +20,27 @@ Stack de Docker Swarm de **Consulta Empresas Procom**: front React servido por n
 
 | Variable | Obligatoria | Valor |
 |---|---|---|
-| `IMAGE_API` | Sí | `<usuario>/consultaempresas-api:<tag>` |
-| `IMAGE_WEB` | Sí | `<usuario>/consultaempresas-web:<tag>` |
+| `IMAGE` | Sí | `<usuario>/consultaempresas:<tag>` |
 | `NODE` | Sí | El mismo que usan los otros stacks del worker, ej. `node.hostname==...` |
 | `LOKI_URL` | Sí | La misma que usan los otros stacks del worker |
 | `APP_PORT` | No | Puerto publicado (default `5007`) |
 
-## Construir las imágenes
+## Construir la imagen
 
 Desde la raíz del repo del código:
 
 ```sh
-docker build -t <usuario>/consultaempresas-api:<tag> server
-docker build -t <usuario>/consultaempresas-web:<tag> client
-docker push <usuario>/consultaempresas-api:<tag>
-docker push <usuario>/consultaempresas-web:<tag>
+docker build -t <usuario>/consultaempresas:<tag> .
+docker push <usuario>/consultaempresas:<tag>
 ```
 
 ## Actualizar
 
-Subir las imágenes con un tag nuevo, cambiar `IMAGE_API` / `IMAGE_WEB` y *Update the stack*. El contenedor nuevo arranca antes de bajar el viejo (sin corte) y si no pasa el healthcheck vuelve atrás solo.
+Subir la imagen con un tag nuevo, cambiar `IMAGE` y *Update the stack*. El contenedor nuevo arranca antes de bajar el viejo (sin corte) y si no pasa el healthcheck vuelve atrás solo.
 
 ## Verificar
 
 ```sh
 curl http://<ip-del-worker>:5007/                                    # front
-curl "http://<ip-del-worker>:5007/v1/empresas?cuit=...&razonsocial=..."  # API vía proxy
+curl "http://<ip-del-worker>:5007/v1/empresas?cuit=...&razonsocial=..."  # API
 ```
