@@ -16,7 +16,7 @@ version: "3.9"
 
 services:
   consultaempresas:
-    image: ${IMAGE:?Definir IMAGE (usuario/consultaempresas:tag)}
+    image: fabreguesm/consultaempresas:1.0.0
     ports:
       - "${APP_PORT:-5007}:5006"
     environment:
